@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  quartz-mysql-db:
+    image: mysql:8.1.5
+    container_name: mysql-db
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: "mysql-quartz-db"
+      MYSQL_USER: "root"
+      MYSQL_PASSWORD:
+      MYSQL_ROOT_PASSWORD:
