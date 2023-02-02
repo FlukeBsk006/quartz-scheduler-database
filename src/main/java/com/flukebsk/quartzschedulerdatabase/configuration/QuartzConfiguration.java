@@ -40,8 +40,8 @@ public class QuartzConfiguration {
         //(such as the addition of a job). JDBCJobStore is appropriate if you are using Quartz in a stand-alone application,
         //or within a servlet container if the application is not using JTA transactions.
         properties.setProperty("org.quartz.jobStore.class", "org.quartz.impl.jdbcjobstore.JobStoreTX");
-//        properties.setProperty("org.quartz.jobStore.driverDelegateClass", "org.quartz.impl.jdbcjobstore.PostgreSQLDelegate");
-        properties.setProperty("org.quartz.jobStore.driverDelegateClass", "org.quartz.impl.jdbcjobstore.StdJDBCDelegate");
+        properties.setProperty("org.quartz.jobStore.driverDelegateClass", "org.quartz.impl.jdbcjobstore.PostgreSQLDelegate");
+//        properties.setProperty("org.quartz.jobStore.driverDelegateClass", "org.quartz.impl.jdbcjobstore.StdJDBCDelegate");
 
         schedulerFactoryBean.setQuartzProperties(properties);
         schedulerFactoryBean.setDataSource(dataSource);

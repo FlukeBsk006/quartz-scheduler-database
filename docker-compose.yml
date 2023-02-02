@@ -1,13 +1,16 @@
-version: '3'
-
+version: '3.8'
 services:
-  quartz-mysql-db:
-    image: mysql:8.1.5
-    container_name: mysql-db
-    ports:
-      - "3306:3306"
+  db:
+    image: postgres:latest
+    restart: always
     environment:
-      MYSQL_DATABASE: "mysql-quartz-db"
-      MYSQL_USER: "root"
-      MYSQL_PASSWORD:
-      MYSQL_ROOT_PASSWORD:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=quartz-postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - db:/var/lib/postgresql/data
+volumes:
+  db:
+    driver: local

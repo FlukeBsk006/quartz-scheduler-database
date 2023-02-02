@@ -26,8 +26,8 @@ public class JobDescriptor {
     @JsonProperty("data")
     private Map<String, Object> data = new LinkedHashMap<>();
 
-    @JsonProperty("className")
-    private String className;
+    @JsonProperty("jobClass")
+    private String jobClass;
 
     @JsonProperty("triggers")
     private List<TriggerDescriptor> triggerDescriptors = new ArrayList<>();
@@ -56,18 +56,7 @@ public class JobDescriptor {
         return triggers;
     }
 
-//    public JobDetail buildJobDetail() {
-//        JobDataMap jobDataMap = data == null ? new JobDataMap(new LinkedHashMap<>()) : new JobDataMap(data);
-//        jobDataMap.put("jobGroup", group);
-//        jobDataMap.put("jobName", name);
-//
-//        return newJob(Action.class)
-//                .withIdentity(getName(), getGroup())
-//                .usingJobData(jobDataMap)
-//                .build();
-//    }
-
-    public JobDetail buildJobDetail(Class<?> className) {
+    public JobDetail buildJobDetail(Class<?> jobClass) {
         JobDataMap jobDataMap = data == null ? new JobDataMap(new LinkedHashMap<>()) : new JobDataMap(data);
         jobDataMap.put("jobGroup", group);
         jobDataMap.put("jobName", name);
@@ -75,7 +64,7 @@ public class JobDescriptor {
         return newJob(Action.class)
                 .withIdentity(getName(), getGroup())
                 .usingJobData(jobDataMap)
-                .ofType((Class<? extends Job>) className)
+                .ofType((Class<? extends Job>) jobClass)
                 .storeDurably()
                 .build();
     }
@@ -88,8 +77,8 @@ public class JobDescriptor {
         return JobDescriptor.builder()
                 .name(jobDetail.getKey().getName())
                 .group(jobDetail.getKey().getGroup())
+                .jobClass(String.valueOf(jobDetail.getJobClass()))
                 .data(jobDetail.getJobDataMap())
-//                .className("com.example.quartzScheduler.action.Test1")
                 .triggerDescriptors(triggerDescriptors).build();
     }
 }

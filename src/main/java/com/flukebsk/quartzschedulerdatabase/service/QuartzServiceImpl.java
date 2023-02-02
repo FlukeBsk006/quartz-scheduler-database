@@ -37,7 +37,7 @@ public class QuartzServiceImpl implements QuartzService {
 //    }
 
     public JobDescriptor createJob(String group, JobDescriptor descriptor) throws ClassNotFoundException {
-        Class<?> className = Class.forName(descriptor.getClassName());
+        Class<?> className = Class.forName(descriptor.getJobClass());
         descriptor.setGroup(group);
         JobDetail jobDetail = descriptor.buildJobDetail(className);
         Set<Trigger> triggersForJob = descriptor.buildTriggers();
@@ -91,12 +91,10 @@ public class QuartzServiceImpl implements QuartzService {
             JobDetail oldJobDetail = scheduler.getJobDetail(jobKey(name, group));
 //            System.out.println(scheduler);
             if(Objects.nonNull(oldJobDetail)) {
-                Class<?> jobClass = oldJobDetail.getJobClass();
-//                System.out.println(jobClass);
+//                Class<?> jobClass = oldJobDetail.getJobClass();
 
                 JobDataMap jobDataMap = oldJobDetail.getJobDataMap();
                 for(Map.Entry<String,Object> entry : descriptor.getData().entrySet()){
-//                    System.out.println(entry.getKey());
                     jobDataMap.put(entry.getKey(), entry.getValue());;
                 }
 
@@ -106,7 +104,6 @@ public class QuartzServiceImpl implements QuartzService {
                 JobBuilder jb = oldJobDetail.getJobBuilder();
 
                 JobDetail newJobDetail = jb.usingJobData(jobDataMap).storeDurably().build();
-//                JobDetail newJobDetail = jb.build();
 
                 scheduler.addJob(newJobDetail, true);
                 log.info("Updated job with key - {}", newJobDetail.getKey());

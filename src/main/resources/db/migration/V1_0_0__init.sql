@@ -1,3 +1,5 @@
+-- If you change database from postgres to mysql, You must change the variable type "BYTEA" to uses "LONGBLOB". --
+
 CREATE TABLE qrtz_job_details
   (
      sched_name        VARCHAR(120) NOT NULL,
@@ -9,7 +11,7 @@ CREATE TABLE qrtz_job_details
      is_nonconcurrent  BOOL NOT NULL,
      is_update_data    BOOL NOT NULL,
      requests_recovery BOOL NOT NULL,
-     job_data          LONGBLOB NULL,
+     job_data          BYTEA NULL,
      PRIMARY KEY (sched_name, job_name, job_group)
   );
 
@@ -30,7 +32,7 @@ CREATE TABLE qrtz_triggers
      end_time       BIGINT NULL,
      calendar_name  VARCHAR(200) NULL,
      misfire_instr  SMALLINT NULL,
-     job_data       LONGBLOB NULL,
+     job_data       BYTEA NULL,
      PRIMARY KEY (sched_name, trigger_name, trigger_group),
      FOREIGN KEY (sched_name, job_name, job_group) REFERENCES qrtz_job_details(
      sched_name, job_name, job_group)
@@ -87,7 +89,7 @@ CREATE TABLE qrtz_blob_triggers
      sched_name    VARCHAR(120) NOT NULL,
      trigger_name  VARCHAR(200) NOT NULL,
      trigger_group VARCHAR(200) NOT NULL,
-     blob_data     LONGBLOB NULL,
+     blob_data     BYTEA NULL,
      PRIMARY KEY (sched_name, trigger_name, trigger_group),
      FOREIGN KEY (sched_name, trigger_name, trigger_group) REFERENCES
      qrtz_triggers(sched_name, trigger_name, trigger_group)
@@ -97,7 +99,7 @@ CREATE TABLE qrtz_calendars
   (
      sched_name    VARCHAR(120) NOT NULL,
      calendar_name VARCHAR(200) NOT NULL,
-     calendar      LONGBLOB NOT NULL,
+     calendar      BYTEA NOT NULL,
      PRIMARY KEY (sched_name, calendar_name)
   );
 
