@@ -91,19 +91,26 @@ public class QuartzServiceImpl implements QuartzService {
             JobDetail oldJobDetail = scheduler.getJobDetail(jobKey(name, group));
 //            System.out.println(scheduler);
             if(Objects.nonNull(oldJobDetail)) {
-//                Class<?> jobClass = oldJobDetail.getJobClass();
-
+                Class<?> jobClass = oldJobDetail.getJobClass();
                 JobDataMap jobDataMap = oldJobDetail.getJobDataMap();
+
                 for(Map.Entry<String,Object> entry : descriptor.getData().entrySet()){
                     jobDataMap.put(entry.getKey(), entry.getValue());;
                 }
 
-//                jobDataMap.put("className", descriptor.getClassName());
-                List<TriggerDescriptor> triggerDescriptors = descriptor.getTriggerDescriptors();
+                JobDetail jobDetail = scheduler.getJobDetail(jobKey(name, group));
+                scheduler.deleteJob(jobKey(name, group));
+                Set<Trigger> triggersForJob = descriptor.buildTriggers();
+                scheduler.scheduleJob(jobDetail, triggersForJob, false);
+
+                Class<?> newJobClass = Class.forName(descriptor.getJobClass());
 
                 JobBuilder jb = oldJobDetail.getJobBuilder();
 
-                JobDetail newJobDetail = jb.usingJobData(jobDataMap).storeDurably().build();
+                JobDetail newJobDetail = jb.usingJobData(jobDataMap)
+                        .ofType((Class<? extends Job>) newJobClass)
+                        .storeDurably()
+                        .build();
 
                 scheduler.addJob(newJobDetail, true);
                 log.info("Updated job with key - {}", newJobDetail.getKey());
@@ -113,6 +120,8 @@ public class QuartzServiceImpl implements QuartzService {
             log.warn("Could not find job with key - {}.{} to update", group, name);
         } catch (SchedulerException e) {
             log.error("Could not find job with key - {}.{} to update due to error - {}", group, name, e.getLocalizedMessage());
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
         }
         return Optional.empty();
     }
