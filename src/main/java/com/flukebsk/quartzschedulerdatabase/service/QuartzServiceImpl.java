@@ -1,6 +1,8 @@
 package com.flukebsk.quartzschedulerdatabase.service;
 
+import com.flukebsk.quartzschedulerdatabase.entity.HistoryJobEntity;
 import com.flukebsk.quartzschedulerdatabase.model.JobDescriptor;
+import com.flukebsk.quartzschedulerdatabase.model.JobUpdate;
 import com.flukebsk.quartzschedulerdatabase.model.TriggerDescriptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,8 @@ import static org.quartz.JobKey.jobKey;
 public class QuartzServiceImpl implements QuartzService {
 
     private final Scheduler scheduler;
+
+    private final HistoryJobService historyJobService;
 
 //    public JobDescriptor createJob(String group, JobDescriptor descriptor) {
 //        descriptor.setGroup(group);
@@ -44,6 +48,22 @@ public class QuartzServiceImpl implements QuartzService {
         log.info("About to save job with key - {}", jobDetail.getKey());
         try {
             scheduler.scheduleJob(jobDetail, triggersForJob, false);
+
+            for(TriggerDescriptor triggerDescriptor : descriptor.getTriggerDescriptors()){
+
+                HistoryJobEntity historyJobEntity = new HistoryJobEntity();
+                historyJobEntity.setHisJobClass(descriptor.getJobClass());
+                historyJobEntity.setHisGroup(descriptor.getGroup());
+                historyJobEntity.setHisName(descriptor.getName());
+                historyJobEntity.setHisCronName(triggerDescriptor.getName());
+                historyJobEntity.setHisNewCron(triggerDescriptor.getCron());
+                historyJobEntity.setHisOldCron(triggerDescriptor.getCron());
+                historyJobEntity.setHisDateUpdate(new Date());
+                historyJobEntity.setHisType("created");
+
+                historyJobService.createHistory(historyJobEntity);
+            }
+
             log.info("Job with key - {} saved successfully", jobDetail.getKey());
         } catch (SchedulerException e) {
             log.error("Could not save job with key - {} due to error - {}", jobDetail.getKey(), e.getLocalizedMessage());
@@ -86,49 +106,67 @@ public class QuartzServiceImpl implements QuartzService {
         return Optional.empty();
     }
 
-    public Optional<JobDetail> updateJob(String group, String name, JobDescriptor descriptor) {
+    public Optional<JobDetail> updateJob(String group, String name, JobUpdate jobUpdate) {
         try {
             JobDetail oldJobDetail = scheduler.getJobDetail(jobKey(name, group));
 //            System.out.println(scheduler);
             if(Objects.nonNull(oldJobDetail)) {
-                Class<?> jobClass = oldJobDetail.getJobClass();
-                JobDataMap jobDataMap = oldJobDetail.getJobDataMap();
-
-                for(Map.Entry<String,Object> entry : descriptor.getData().entrySet()){
-                    jobDataMap.put(entry.getKey(), entry.getValue());;
-                }
-
-                JobDetail jobDetail = scheduler.getJobDetail(jobKey(name, group));
                 scheduler.deleteJob(jobKey(name, group));
-                Set<Trigger> triggersForJob = descriptor.buildTriggers();
-                scheduler.scheduleJob(jobDetail, triggersForJob, false);
 
-                Class<?> newJobClass = Class.forName(descriptor.getJobClass());
+                Set<Trigger> triggersForJob = jobUpdate.buildTriggers();
+                scheduler.scheduleJob(oldJobDetail, triggersForJob, false);
 
-                JobBuilder jb = oldJobDetail.getJobBuilder();
+//                Class<?> newJobClass = Class.forName(descriptor.getJobClass());
 
-                JobDetail newJobDetail = jb.usingJobData(jobDataMap)
-                        .ofType((Class<? extends Job>) newJobClass)
-                        .storeDurably()
-                        .build();
+//                JobBuilder jb = oldJobDetail.getJobBuilder();
+//
+//                JobDetail newJobDetail = jb
+//                        .usingJobData(jobDataMap)
+//                        .ofType((Class<? extends Job>) newJobClass)
+//                        .storeDurably()
+//                        .build();
 
-                scheduler.addJob(newJobDetail, true);
-                log.info("Updated job with key - {}", newJobDetail.getKey());
+//                scheduler.addJob(newJobDetail, true);
 
-                return Optional.of(newJobDetail);
+//                String replaceJobClass = String.valueOf(oldJobDetail.getJobClass()).replace("class ", "");
+//
+//                HistoryJobEntity historyJobEntity = new HistoryJobEntity();
+//                historyJobEntity.setHisJobClass(replaceJobClass);
+//                historyJobEntity.setHisGroup(group);
+//                historyJobEntity.setHisName(name);
+//                historyJobEntity.setHisDateUpdate(new Date());
+//                historyJobEntity.setHisType("updated add");
+
+//                historyJobService.createHistory(historyJobEntity);
+
+                log.info("Updated job with key - {}", oldJobDetail.getKey());
+
+                return Optional.of(oldJobDetail);
             }
             log.warn("Could not find job with key - {}.{} to update", group, name);
         } catch (SchedulerException e) {
             log.error("Could not find job with key - {}.{} to update due to error - {}", group, name, e.getLocalizedMessage());
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
         }
         return Optional.empty();
     }
 
     public void deleteJob(String group, String name) {
         try {
+            JobDetail oldJobDetail = scheduler.getJobDetail(jobKey(name, group));
+
+            String replaceJobClass = String.valueOf(oldJobDetail.getJobClass()).replace("class ", "");
+
+            HistoryJobEntity historyJobEntity = new HistoryJobEntity();
+            historyJobEntity.setHisJobClass(replaceJobClass);
+            historyJobEntity.setHisGroup(group);
+            historyJobEntity.setHisName(name);
+            historyJobEntity.setHisDateUpdate(new Date());
+            historyJobEntity.setHisType("deleted");
+
+            historyJobService.createHistory(historyJobEntity);
+
             scheduler.deleteJob(jobKey(name, group));
+
             log.info("Deleted job with key - {}.{}", group, name);
         } catch (SchedulerException e) {
             log.error("Could not delete job with key - {}.{} due to error - {}", group, name, e.getLocalizedMessage());

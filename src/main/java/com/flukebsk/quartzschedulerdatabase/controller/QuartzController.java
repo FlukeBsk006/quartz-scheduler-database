@@ -1,6 +1,7 @@
 package com.flukebsk.quartzschedulerdatabase.controller;
 
 import com.flukebsk.quartzschedulerdatabase.model.JobDescriptor;
+import com.flukebsk.quartzschedulerdatabase.model.JobUpdate;
 import com.flukebsk.quartzschedulerdatabase.service.QuartzService;
 import lombok.RequiredArgsConstructor;
 import org.quartz.JobDetail;
@@ -39,9 +40,9 @@ public class QuartzController {
     }
 
     @PutMapping(path = "/groups/{group}/jobs/{name}")
-    public ResponseEntity<JobDetail> updateJob(@PathVariable String group, @PathVariable String name, @RequestBody JobDescriptor descriptor) throws ClassNotFoundException {
+    public ResponseEntity<JobDetail> updateJob(@PathVariable String group, @PathVariable String name, @RequestBody JobUpdate jobUpdate) throws ClassNotFoundException {
 
-        return quartzService.updateJob(group, name, descriptor).map(ResponseEntity::ok)
+        return quartzService.updateJob(group, name, jobUpdate).map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
