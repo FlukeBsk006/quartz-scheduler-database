@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.quartz.JobKey.jobKey;
 
@@ -49,7 +50,7 @@ public class QuartzServiceImpl implements QuartzService {
         try {
             scheduler.scheduleJob(jobDetail, triggersForJob, false);
 
-            for(TriggerDescriptor triggerDescriptor : descriptor.getTriggerDescriptors()){
+            for (TriggerDescriptor triggerDescriptor : descriptor.getTriggerDescriptors()) {
 
                 HistoryJobEntity historyJobEntity = new HistoryJobEntity();
                 historyJobEntity.setHisJobClass(descriptor.getJobClass());
@@ -94,7 +95,7 @@ public class QuartzServiceImpl implements QuartzService {
     public Optional<JobDescriptor> findJob(String group, String name) {
         try {
             JobDetail jobDetail = scheduler.getJobDetail(jobKey(name, group));
-            if(Objects.nonNull(jobDetail)) {
+            if (Objects.nonNull(jobDetail)) {
                 List<? extends Trigger> triggers = scheduler.getTriggersOfJob(jobDetail.getKey());
                 return Optional.of(
                         JobDescriptor.buildDescriptor(jobDetail, triggers, scheduler));
@@ -109,39 +110,71 @@ public class QuartzServiceImpl implements QuartzService {
     public Optional<JobDetail> updateJob(String group, String name, JobUpdate jobUpdate) {
         try {
             JobDetail oldJobDetail = scheduler.getJobDetail(jobKey(name, group));
-//            System.out.println(scheduler);
-            if(Objects.nonNull(oldJobDetail)) {
+            if (Objects.nonNull(oldJobDetail)) {
+                String replaceJobClass = String.valueOf(oldJobDetail.getJobClass()).replace("class ", "");
+
+                List<? extends Trigger> triggers = scheduler.getTriggersOfJob(oldJobDetail.getKey());
+
+                List<TriggerDescriptor> triggerDescriptorsOld = JobDescriptor.buildDescriptor(oldJobDetail, triggers, scheduler).getTriggerDescriptors();
+                List<String> triggerNameOldList = triggerDescriptorsOld.stream()
+                        .map(TriggerDescriptor::getName)
+                        .collect(Collectors.toList());
+
+                List<String> triggerNameNewList = jobUpdate.getTriggerDescriptors().stream()
+                        .map(TriggerDescriptor::getName)
+                        .collect(Collectors.toList());
+
+                List<String> triggerCronOldList = triggerDescriptorsOld.stream()
+                        .map(TriggerDescriptor::getCron)
+                        .collect(Collectors.toList());
+
+                List<TriggerDescriptor> triggerDescriptorsNew = jobUpdate.getTriggerDescriptors();
+
                 scheduler.deleteJob(jobKey(name, group));
+
+                for (TriggerDescriptor trigger : triggerDescriptorsNew) {
+                    HistoryJobEntity historyJobEntity = new HistoryJobEntity();
+                    historyJobEntity.setHisJobClass(replaceJobClass);
+                    historyJobEntity.setHisGroup(group);
+                    historyJobEntity.setHisName(name);
+                    historyJobEntity.setHisCronName(trigger.getName());
+                    historyJobEntity.setHisNewCron(trigger.getCron());
+                    historyJobEntity.setHisDateUpdate(new Date());
+//
+                    if(triggerNameOldList.contains(trigger.getName())){
+                        historyJobEntity.setHisOldCron(triggerCronOldList.get(triggerNameOldList.indexOf(trigger.getName())));
+                        historyJobEntity.setHisType("updated compare");
+                    }else{
+                        historyJobEntity.setHisType("updated add");
+                    }
+
+                    historyJobService.createHistory(historyJobEntity);
+                }
+
+                triggerNameOldList.removeAll( triggerNameNewList );
+
+                for (String cronName : triggerNameOldList) {
+                    HistoryJobEntity historyJobEntity = new HistoryJobEntity();
+                    historyJobEntity.setHisJobClass(replaceJobClass);
+                    historyJobEntity.setHisGroup(group);
+                    historyJobEntity.setHisName(name);
+                    historyJobEntity.setHisCronName(cronName);
+                    historyJobEntity.setHisDateUpdate(new Date());
+                    historyJobEntity.setHisType("updated delete");
+                    historyJobService.createHistory(historyJobEntity);
+                }
 
                 Set<Trigger> triggersForJob = jobUpdate.buildTriggers();
                 scheduler.scheduleJob(oldJobDetail, triggersForJob, false);
 
-//                Class<?> newJobClass = Class.forName(descriptor.getJobClass());
+                JobBuilder jb = oldJobDetail.getJobBuilder();
+                JobDetail newJobDetail = jb
+                        .storeDurably()
+                        .build();
 
-//                JobBuilder jb = oldJobDetail.getJobBuilder();
-//
-//                JobDetail newJobDetail = jb
-//                        .usingJobData(jobDataMap)
-//                        .ofType((Class<? extends Job>) newJobClass)
-//                        .storeDurably()
-//                        .build();
+                log.info("Updated job with key - {}", newJobDetail.getKey());
 
-//                scheduler.addJob(newJobDetail, true);
-
-//                String replaceJobClass = String.valueOf(oldJobDetail.getJobClass()).replace("class ", "");
-//
-//                HistoryJobEntity historyJobEntity = new HistoryJobEntity();
-//                historyJobEntity.setHisJobClass(replaceJobClass);
-//                historyJobEntity.setHisGroup(group);
-//                historyJobEntity.setHisName(name);
-//                historyJobEntity.setHisDateUpdate(new Date());
-//                historyJobEntity.setHisType("updated add");
-
-//                historyJobService.createHistory(historyJobEntity);
-
-                log.info("Updated job with key - {}", oldJobDetail.getKey());
-
-                return Optional.of(oldJobDetail);
+                return Optional.of(newJobDetail);
             }
             log.warn("Could not find job with key - {}.{} to update", group, name);
         } catch (SchedulerException e) {
@@ -181,7 +214,7 @@ public class QuartzServiceImpl implements QuartzService {
             log.error("Could not pause job with key - {}.{} due to error - {}", group, name, e.getLocalizedMessage());
         }
     }
-    
+
     public void resumeJob(String group, String name) {
         try {
             scheduler.resumeJob(jobKey(name, group));
@@ -190,4 +223,5 @@ public class QuartzServiceImpl implements QuartzService {
             log.error("Could not resume job with key - {}.{} due to error - {}", group, name, e.getLocalizedMessage());
         }
     }
+
 }
